@@ -12,6 +12,10 @@
 	position: absolute;
 	left: 251px;
 	top: 154px;
+	z-index: 3;
+}
+#ball.under
+{
 	z-index: 1;
 }
 #mario
@@ -19,7 +23,24 @@
 	position: absolute;
 	left: 227px;
 	bottom: 30px;
+	z-index: 3;
+}
+#goalkeeper
+{
+	position: absolute;
+	left: 245px;
+	top: 72px;
 	z-index: 2;
+}
+#goalkeeper.left
+{
+	transform: rotate(-90deg);
+	transition: transform 300ms;
+}
+#goalkeeper.right
+{
+	transform: rotate(90deg);
+	transition: transform 300ms;
 }
 #goal
 {
@@ -29,6 +50,7 @@
 	left: 191px;
 	top: 48px;
 	opacity: 0.5;
+	z-index: 5;
 }
 #result
 {

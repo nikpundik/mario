@@ -1,84 +1,199 @@
 $(function() {
 
-	var shooting = false;
+	var marquee = new Marquee();
+	marquee.animate();
 
-	var goals = 0;
-	var goalTop = 77;
-	var shootSpeed = 300;
-	var fallSpeed = 50;
+	var directions = new Directions();
 
-	var game = $("#game");
-	var goal = $("#goal");
-	var ball = $("#ball");
-	var result = $("#mario-result");
+	var game = new Game();
+	game.goalKeeper = new GoalKeeper(directions);
+	game.ball = new Ball();
+	game.goal = new Goal();
+	game.mario = new Mario();
+	game.resultTable = new ResultTable();
 
-	var ballPosition = ball.position();
-	var ballWidth = ball.width();
-
-	marquee();
-
-	goal.click(function(e) {
-
-		if (shooting) return;
-		shooting = true;
-
-        var posX = game.offset().left,
-            posY = game.offset().top;
-
-        var ballX = e.pageX - posX - ballWidth*0.5;
-        var ballY = e.pageY - posY - ballWidth*0.5;
-	    
-	    ballShoot(function() {
-	    	scoreGoal();
-	    });
-
-	    function ballShoot(callback) {
-	    	ball.animate({
-		        left: ballX + "px",
-		        top: ballY + "px"
-		    }, shootSpeed, "swing", callback);
-	    }
-
-	    function ballGoal(callback) {
-	    	ball.animate({
-		        top: goalTop + "px"
-		    }, fallSpeed, "swing", callback);
-	    }
-
-	    function ballReset() {
-			ball.css({
-		        left: ballPosition.left + "px",
-		        top: ballPosition.top + "px"
-		    });
-    		shooting = false;
-	    }
-
-	    function scoreGoal() {
-	    	goals++;
-	    	result.text(goals);
-	    	ballGoal(function() {
-	    		setTimeout(ballReset, 2000);
-	    	});
-	    }
-
-	});
-
-	function marquee() {
-		var marqueeDiv = $("#marquee > div");
-		var marqueeWidth = "-" + marqueeDiv.css("width");
-		var parentMarqueeWidth = $("#marquee").css("width");
-
-		marqueeDiv.css("margin-left", parentMarqueeWidth);
-		animateMarquee();
-
-	    function animateMarquee() {
-	    	marqueeDiv.animate({
-		        "margin-left": marqueeWidth
-		    }, 10000, "linear", function(){
-		    	marqueeDiv.css("margin-left", parentMarqueeWidth);
-		    	animateMarquee()
-		    });
-	    }
-	}
+	game.start();
 
 });
+
+//marquee
+
+function Marquee() {
+	this.view = $("#marquee");
+	this.innerView = $("#marquee > div");
+	this.marqueePixelsWidth = this.view.css("width");
+	this.marqueeInnerNegativePixelsWidth = "-" + this.innerView.css("width");
+	this.innerView.css("margin-left", this.marqueePixelsWidth);
+}
+
+Marquee.prototype.animate = function() {
+	var ref = this;
+	this.innerView.animate({
+        "margin-left": this.marqueeInnerNegativePixelsWidth
+    }, 10000, "linear", function() {
+    	ref.innerView.css("margin-left", ref.marqueePixelsWidth);
+    	ref.animate();
+    });
+};
+
+
+//directions
+
+function Directions() {
+	this.LEFTDOWN = "leftdown";
+  	this.LEFTUP = "leftup";
+  	this.RIGHTDOWN = "rightdown";
+  	this.RIGHTUP = "rightup";
+  	this.directions = [
+  		this.LEFTDOWN, 
+  		this.LEFTUP,
+  		this.RIGHTDOWN,
+  		this.RIGHTUP
+  	];
+}
+
+Directions.prototype = {
+	getRandomDirection: function() {
+		var guess = Math.floor(Math.random() * this.directions.length);
+		return this.directions[guess];
+	}
+};
+
+//goal
+function Goal() {
+	this.view = $("#goal");
+};
+
+//game
+function Game() {
+	this.view = $("#game");
+	this.goal = null;
+	this.mario = null;
+	this.goalKeeper = null;
+	this.ball = null;
+};
+
+Game.prototype.start = function() {
+	var ref = this;
+	this.goal.view.click(function(e) {
+		if (ref.mario.shooting) return;
+		ref.mario.shooting = true;
+
+        var position = ref.getLocalPosition(e);
+
+        ref.goalKeeper.move(function() {
+
+        });
+	    
+	    ref.ball.shoot(position, function() {
+	    	ref.scoreGoal();
+	    });
+
+	});
+};
+
+Game.prototype.getLocalPosition = function(e) {
+	var posX = this.view.offset().left,
+        posY = this.view.offset().top;
+
+    var ballX = e.pageX - posX - this.ball.width*0.5;
+    var ballY = e.pageY - posY - this.ball.width*0.5;
+    return {x:ballX, y:ballY};
+}
+
+Game.prototype.scoreGoal = function() {
+	var ref = this;
+	this.mario.goals++;
+	this.resultTable.setScore(this.mario.goals);
+	this.ball.fall(function() {
+		setTimeout(function() {
+			ref.ball.reset();
+			ref.goalKeeper.reset();
+			ref.mario.shooting = false;
+		}, 2000);
+	});
+}
+
+//goalkeeper
+
+function GoalKeeper(directions) {
+	this.view = $("#goalkeeper");
+	this.directions = directions;
+	this.positions = {};
+	this.positions[this.directions.LEFTDOWN] = [196, 68, "left"];
+	this.positions[this.directions.LEFTUP] = [196, 45, "left"];
+	this.positions[this.directions.RIGHTDOWN] = [296, 68, "right"];
+	this.positions[this.directions.RIGHTUP] = [296, 45, "right"];
+	this.basePosition = this.view.position();
+	this.speed = 300;
+}
+
+GoalKeeper.prototype.move = function(callback) {
+	var guessedDirection = this.directions.getRandomDirection();
+	var guessedPosition = this.positions[guessedDirection];
+	this.view.animate({
+        left: guessedPosition[0] + "px",
+        top: guessedPosition[1] + "px"
+    }, this.speed, "swing", callback);
+    this.view.addClass(guessedPosition[2]);
+};
+
+GoalKeeper.prototype.reset = function() {
+	this.view.css({
+        left: this.basePosition.left + "px",
+        top: this.basePosition.top + "px"
+    });
+    this.view.removeClass("left");
+    this.view.removeClass("right");
+};
+
+//mario
+
+function Mario() {
+	this.shooting = false;
+	this.goals = 0;
+	this.goalTop = 77;
+	this.shootSpeed = 300;
+	this.fallSpeed = 50;
+};
+
+//ball
+
+function Ball() {
+	this.view = $("#ball");
+	this.basePosition = this.view.position();
+	this.width = this.view.width();
+	this.shootSpeed = 300;
+	this.fallSpeed = 50;
+	this.goalTop = 77;
+}
+
+Ball.prototype.shoot = function(position, callback) {
+	this.view.animate({
+        left: position.x + "px",
+        top: position.y + "px"
+    }, this.shootSpeed, "swing", callback);
+};
+
+Ball.prototype.fall = function(callback) {
+	this.view.animate({
+        top: this.goalTop + "px"
+    }, this.fallSpeed, "swing", callback);
+};
+
+Ball.prototype.reset = function() {
+	this.view.css({
+        left: this.basePosition.left + "px",
+        top: this.basePosition.top + "px"
+    });
+};
+
+//result
+
+function ResultTable() {
+	this.view = $("#mario-result");
+}
+
+ResultTable.prototype.setScore = function(score) {
+	this.view.text(score);
+};
