@@ -71,6 +71,7 @@ function Game() {
 	this.mario = null;
 	this.goalKeeper = null;
 	this.ball = null;
+	this.difficulty = 10;
 };
 
 Game.prototype.start = function() {
@@ -79,20 +80,14 @@ Game.prototype.start = function() {
 		if (ref.mario.shooting) return;
 		ref.mario.shooting = true;
 
-        var position = ref.getLocalPosition(e);
+        var position = ref.getLocalGoalPosition(e);
 
-        ref.goalKeeper.move(function() {
-
-        });
-	    
-	    ref.ball.shoot(position, function() {
-	    	ref.scoreGoal();
-	    });
+        ref.shoot(position);
 
 	});
 };
 
-Game.prototype.getLocalPosition = function(e) {
+Game.prototype.getLocalGoalPosition = function(e) {
 	var posX = this.view.offset().left,
         posY = this.view.offset().top;
 
@@ -100,6 +95,23 @@ Game.prototype.getLocalPosition = function(e) {
     var ballY = e.pageY - posY - this.ball.width*0.5;
     return {x:ballX, y:ballY};
 }
+
+Game.prototype.shoot = function(position) {
+	
+	var ref = this;
+
+	var blocked = Math.floor(Math.random() * this.difficulty) == this.difficulty - 1;
+	var goalkeeperPosition = blocked ? position : null;
+	
+	this.goalKeeper.move(goalkeeperPosition, function() {
+
+    });
+
+    this.ball.shoot(position, function() {
+    	ref.scoreGoal();
+    });
+
+};
 
 Game.prototype.scoreGoal = function() {
 	var ref = this;
@@ -118,6 +130,7 @@ Game.prototype.scoreGoal = function() {
 
 function GoalKeeper(directions) {
 	this.view = $("#goalkeeper");
+	this.shadowView = $("#goalkeeper-shadow");
 	this.directions = directions;
 	this.positions = {};
 	this.positions[this.directions.LEFTDOWN] = [196, 68, "left"];
@@ -125,16 +138,32 @@ function GoalKeeper(directions) {
 	this.positions[this.directions.RIGHTDOWN] = [296, 68, "right"];
 	this.positions[this.directions.RIGHTUP] = [296, 45, "right"];
 	this.basePosition = this.view.position();
+	this.baseShadowPosition = this.shadowView.position();
 	this.speed = 300;
 }
 
-GoalKeeper.prototype.move = function(callback) {
-	var guessedDirection = this.directions.getRandomDirection();
-	var guessedPosition = this.positions[guessedDirection];
+GoalKeeper.prototype.move = function(position, callback) {
+	
+	var guessedPosition;
+	
+	if (position) {
+		guessedPosition = [position.x, position.y];
+	} else {
+		var guessedDirection = this.directions.getRandomDirection();
+		guessedPosition = this.positions[guessedDirection];
+	}
+	
+
 	this.view.animate({
         left: guessedPosition[0] + "px",
         top: guessedPosition[1] + "px"
     }, this.speed, "swing", callback);
+
+    this.shadowView.animate({
+        left: guessedPosition[0] + "px",
+        opacity: 0.1
+    }, this.speed, "swing");
+
     this.view.addClass(guessedPosition[2]);
 };
 
@@ -142,6 +171,10 @@ GoalKeeper.prototype.reset = function() {
 	this.view.css({
         left: this.basePosition.left + "px",
         top: this.basePosition.top + "px"
+    });
+    this.shadowView.css({
+        left: this.baseShadowPosition.left + "px",
+        opacity: 1
     });
     this.view.removeClass("left");
     this.view.removeClass("right");
@@ -186,6 +219,15 @@ Ball.prototype.reset = function() {
         left: this.basePosition.left + "px",
         top: this.basePosition.top + "px"
     });
+	this.view.removeClass("under");
+};
+
+Ball.prototype.setInGoal = function(goal) {
+	if (goal) {
+		this.view.addClass("under");
+	} else {
+		this.view.removeClass("under");
+	}
 };
 
 //result
